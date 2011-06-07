@@ -24,11 +24,11 @@ import javax.xml.stream.events.XMLEvent;
  * 
  * @author Guy Rixon
  */
-public class ConditionalFragment extends Fragment {
+public class ConditionalFragment extends BasicFragment {
 
-  private Fragment master;
+  private BasicFragment master;
 
-  public ConditionalFragment(Fragment f) {
+  public ConditionalFragment(BasicFragment f) {
     super();
     master = f;
   }

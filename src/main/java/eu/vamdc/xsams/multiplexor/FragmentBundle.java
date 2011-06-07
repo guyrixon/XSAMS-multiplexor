@@ -1,5 +1,6 @@
 package eu.vamdc.xsams.multiplexor;
 
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Iterator;
@@ -22,7 +23,7 @@ import javax.xml.stream.events.XMLEvent;
  * 
  * @author Guy Rixon
  */
-public class FragmentBundle implements Iterable<Fragment> {
+public class FragmentBundle implements Iterable<BasicFragment> {
 
   public static final String XSAMS_NS_URI = "";
 
@@ -36,14 +37,25 @@ public class FragmentBundle implements Iterable<Fragment> {
    */
   private final Map<QName,SharedFragment> fragments;
 
-  private final List<Fragment> queue;
+  private final List<BasicFragment> queue;
+  
+  /**
+   * Indicates whether the shared fragments should be large (i.e.
+   * file-backed, the normal case) or small (memory-backed, the special
+   * case for quick processing of small inputs).
+   */
+  private boolean largeFragments;
+  
+  public FragmentBundle() throws IOException {
+    this(true);
+  }
 
-  public FragmentBundle() {
-    super();
+  public FragmentBundle(boolean large) throws IOException {
 
+    largeFragments = large;
     factory = XMLEventFactory.newFactory();
     fragments = new HashMap<QName,SharedFragment>();
-    queue = new ArrayList<Fragment>();
+    queue = new ArrayList<BasicFragment>();
 
     // Each call in this section adds one or more fragments to the queue.
     // Calls to backetedSequence and plainSequence add shared fragments
@@ -96,12 +108,12 @@ public class FragmentBundle implements Iterable<Fragment> {
    * @throws IllegalStateException If the fragments are not closed for transcription.
    */
   @Override
-  public Iterator<Fragment> iterator() {
+  public Iterator<BasicFragment> iterator() {
     return queue.iterator();
   }
 
   private void documentStart() {
-    Fragment f = new Fragment();
+    BasicFragment f = new BasicFragment();
     f.add(factory.createStartDocument());
     f.add(factory.createStartElement(new QName(null,"XSAMSData"), null, null));
     f.add(factory.createCharacters("\n"));
@@ -109,7 +121,7 @@ public class FragmentBundle implements Iterable<Fragment> {
   }
 
   private void documentEnd() {
-    Fragment f = new Fragment();
+    BasicFragment f = new BasicFragment();
     f.add(factory.createEndElement(new QName(null,"XSAMSData"), null));
     f.add(factory.createCharacters("\n"));
     f.add(factory.createEndDocument());
@@ -124,8 +136,8 @@ public class FragmentBundle implements Iterable<Fragment> {
    * @param body Local name of body elements to go in the shared fragment.
    * @param container Local name of the container element.
    */
-  private void bracketedSequence(String body, String container) {
-    SharedFragment f2 = new SharedFragment();
+  private void bracketedSequence(String body, String container) throws IOException {
+    SharedFragment f2 = (largeFragments)? new LargeSharedFragment() : new SharedFragment();
     fragments.put(qName(body), f2);
 
     ConditionalFragment f1 = new ConditionalFragment(f2);
@@ -141,8 +153,8 @@ public class FragmentBundle implements Iterable<Fragment> {
     queue.add(f3);
   }
 
-  private void plainSequence(String body) {
-    SharedFragment f2 = new SharedFragment();
+  private void plainSequence(String body) throws IOException {
+    SharedFragment f2 = (largeFragments)? new LargeSharedFragment() : new SharedFragment();
     fragments.put(qName(body), f2);
     queue.add(f2);
   }
@@ -152,7 +164,7 @@ public class FragmentBundle implements Iterable<Fragment> {
   }
 
   private void startTag(String local) {
-    Fragment f = new Fragment();
+    BasicFragment f = new BasicFragment();
     f.add(startElement(local));
     f.add(factory.createCharacters("\n"));
     queue.add(f);
@@ -160,7 +172,7 @@ public class FragmentBundle implements Iterable<Fragment> {
 
   
   private void endTag(String local) {
-    Fragment f = new Fragment();
+    BasicFragment f = new BasicFragment();
     f.add(endElement(local));
     f.add(factory.createCharacters("\n"));
     queue.add(f);

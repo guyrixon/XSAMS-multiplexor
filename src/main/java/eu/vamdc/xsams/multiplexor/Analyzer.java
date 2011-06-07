@@ -35,7 +35,7 @@ public class Analyzer implements Callable {
 
     boolean transcribing = false;
     QName kind = null;
-    Fragment current = null;
+    BasicFragment current = null;
     while (in.hasNext()) {
       XMLEvent event = in.nextEvent();
 
@@ -45,7 +45,7 @@ public class Analyzer implements Callable {
         if (disposal.known(q)) {
           kind = q;
           transcribing = true;
-          current = new Fragment();
+          current = new BasicFragment();
         }
       }
 

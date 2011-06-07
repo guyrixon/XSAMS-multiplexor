@@ -21,7 +21,7 @@ public class Synthesizer {
   public void transcribe(Writer out, FragmentBundle disposal) 
       throws XMLStreamException, IOException {
     XMLEventWriter sink = XMLOutputFactory.newFactory().createXMLEventWriter(out);
-    for (Fragment f : disposal) {
+    for (BasicFragment f : disposal) {
       f.transcribe(sink);
     }
     sink.close();
