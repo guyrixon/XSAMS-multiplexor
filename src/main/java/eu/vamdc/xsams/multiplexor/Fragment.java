@@ -1,22 +1,13 @@
-/*
- * To change this template, choose Tools | Templates
- * and open the template in the editor.
- */
 package eu.vamdc.xsams.multiplexor;
 
-import java.util.Collection;
+import java.util.ArrayList;
 import javax.xml.stream.events.XMLEvent;
 
 /**
- *
+ * A fragment of XML. The content is a sequence of XMLEvent objects. This
+ * sequence is expected to contain all the events representing an XML element
+ * and that element's substructure.
+ * 
  * @author Guy Rixon
  */
-public interface Fragment extends Iterable<XMLEvent> {
-  
-  public void add(XMLEvent x);
-  
-  public void addAll(Fragment f);
-  
-  public long size();
-  
-}
+public class Fragment extends ArrayList<XMLEvent> {}

@@ -1,27 +1,48 @@
 /**
- * An application to combine multiple XSAMS documents into one.
+ * Classes for collating XSAMS documents into a single document.
  * <p>
- * {@link eu.vamdc.xsams.multiplexor.Multiplexor} is the top-level API for
- * multiplexing. {@link eu.vamdc.xsams.multiplexor.App} handles the choice of
- * XSAMS inputs on the command line then creates and calls a multiplexor.
+ * XSAMS contains certain elements with special characteristics. These elements
+ * </p>
+ * <ol>
+ * <li>occur in repeating sequences;
+ * <li>have sub-structure to carry the scientific detail;
+ * <li>have super-structure that is the same in every XSAMS instance.
+ * </ol>
  * <p>
- * The multiplexor runs one {@link eu.vamdc.xsams.multiplexor.Analyzer}
- * per input. Each analyzer parses its input XSAMS into a sequence of
- * {@link eu.vamdc.xsams.multiplexor.Fragment} that should be preserved intact
- * in the merged document. These fragments are elements with element descendents
- * such as [TBD]. For each kind of recognized fragment there is a
- * {@link eu.vamdc.xsams.multiplexor.FragmentQueue} to which the analyzer writes
- * the fragments.
+ * E.g. an <i>Atom</i> element has a deep sub-tree of elements describing the
+ * atom and its states. It always appears inside the element at the XPath 
+ * <i>/XSAMSData/Species/Atoms</i>.
  * <p>
- * The program contains one {@link eu.vamdc.xsams.multiplexor.Synthesizer}.
- * This reads the fragment queues and assembles the output document.
+ * The strategy of the multiplexor is accumulate sequences of the special 
+ * elements in files, one file per kind of special element. These sequences
+ * can then be combined in a new, entirely-predictable XSAMS-superstructure to
+ * form the output.
  * <p>
- * The multiplexor runs each of the analyzers in a separate thread and waits
- * for all the threads to complete. It then runs the synthesizer. Thus,
- * reading the inputs is done in parallel but the writing of the output does
- * not overlap with the reading. This design is forced by the XSAMS schema:
- * all fragments of the same type have to appear together, but until all the
- * analyzers return there is no way to know if all fragment of a type have
- * been collected.
+ * An Analyzer object reads XML from one URL and detects the special elements.
+ * It adds each such element, with the element's sub-structure, to a queue for 
+ * that kind of element. Each Analyzer writes to multiple queues.
+ * <p>
+ * A multiplexor object reads the elements back from the queues and writes them
+ * to the output. The Multiplexor creates the XSAMS superstructure as it goes.
+ * <p>
+ * Each job on the application creates one Analyzer per data source and exactly
+ * one multiplexor. These objects are discarded at the end of the job.
+ * <p>
+ * The Analyzers and the Multiplexor can be run in parallel, each in its own 
+ * thread. Analyzers block if a queue becomes full, and the Multiplexor blocks
+ * when reading a queue that is currently empty.
+ * <p>
+ * Each FragmentQueue maintains the queue for one type of special element. It
+ * provides standard, Java queuing-semantics and adds a counter indicating
+ * how many threads are still providing input. Each analyzer decrements the
+ * counter as it finishes its input data. The Multiplexor checks the counter
+ * before asking for data from the queue. If the counter is positive, the
+ * Multiplexor reads from the queue and may block in doing so. If the
+ * counter is zero, the Multiplexor reads the queue speculatively: if there
+ * are data the Multiplexor reads them; if not, the Multiplexor does not block
+ * and is finished with that queue.
+ * <p>
+ * A FragmentQueue may be implemented to store the queued data in memory, or
+ * in a file. The file implementation is cumbersome but allows a longer queue.
  */
 package eu.vamdc.xsams.multiplexor;
