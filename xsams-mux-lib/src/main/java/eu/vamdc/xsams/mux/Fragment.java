@@ -1,4 +1,4 @@
-package eu.vamdc.xsams.multiplexor;
+package eu.vamdc.xsams.mux;
 
 import java.util.ArrayList;
 import javax.xml.stream.events.XMLEvent;

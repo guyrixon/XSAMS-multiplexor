@@ -1,9 +1,4 @@
-/*
- * To change this template, choose Tools | Templates
- * and open the template in the editor.
- */
-
-package eu.vamdc.xsams.multiplexor;
+package eu.vamdc.xsams.mux;
 
 import java.net.URL;
 import java.util.HashSet;

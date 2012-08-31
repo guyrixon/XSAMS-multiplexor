@@ -3,7 +3,7 @@
  * and open the template in the editor.
  */
 
-package eu.vamdc.xsams.multiplexor;
+package eu.vamdc.xsams.mux;
 
 import java.io.IOException;
 import java.net.URL;
