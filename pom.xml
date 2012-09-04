@@ -20,5 +20,6 @@
   <modules>
     <module>xsams-mux-lib</module>
     <module>xsams-mux-app</module>
+    <module>xsams-mux-web</module>
   </modules>
 </project>

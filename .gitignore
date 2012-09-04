@@ -1,3 +1,5 @@
 /target/
 /library/target/
 /xsams-mux-app/target/
+/xsams-mux-lib/target/
+/xsams-mux-web/target/

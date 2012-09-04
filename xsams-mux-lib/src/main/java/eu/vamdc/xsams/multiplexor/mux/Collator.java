@@ -1,4 +1,4 @@
-package eu.vamdc.xsams.mux;
+package eu.vamdc.xsams.multiplexor.mux;
 
 import java.io.OutputStream;
 import java.net.URL;
@@ -9,6 +9,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.atomic.AtomicBoolean;
 import javax.xml.namespace.QName;
 import javax.xml.stream.XMLEventFactory;
 import javax.xml.stream.XMLEventWriter;
@@ -51,17 +52,23 @@ public class Collator {
   
   private Set<URL> inputs;
   
+  private OutputStream output;
+  
   private CountDownLatch contributorCount;
   
-  private List<Exception> inputErrors;
+  private List<Exception> errors;
+  
+  private AtomicBoolean finished;
   
   
-  public Collator(Set<URL> u) {
+  public Collator(Set<URL> u, OutputStream o) {
     inputs = u;
+    output = o;
     
     int nContributors = u.size();
     contributorCount = new CountDownLatch(nContributors);
-    inputErrors = new CopyOnWriteArrayList();
+    errors = new CopyOnWriteArrayList();
+    finished = new AtomicBoolean(false);
     
     
     // Set up the queues for the XSAMS fragments.
@@ -84,21 +91,44 @@ public class Collator {
     queues.put("Comments",                               new MemoryFragmentList());
   }
   
-  public void collate(OutputStream output) throws XMLStreamException, Exception  {
+  /**
+   * Indicates whether the collation has finished or has failed.
+   * 
+   * @return True if output has been completely written or if the collation has failed.
+   */
+  public boolean isFinished() {
+    return finished.get();
+  }
+  
+  public List<Exception> getErrors() {
+    return errors;
+  }
+  
+  public void run() {
+    try {
+      collate();
+    }
+    catch (Exception e) {
+      errors.add(e);
+    }
+  }
+  
+  
+  public void collate() throws XMLStreamException, Exception  {
     
     // Parse the inputs in parallel.
     Integer i = 0;
     for (URL u : inputs) {
       i++;
       String suffix = "_" + i.toString();
-      Analyzer a = new Analyzer(u, queues, suffix, contributorCount, inputErrors);
+      Analyzer a = new Analyzer(u, queues, suffix, contributorCount, errors);
       new Thread(a).start();
     }
     
     // Wait for all the analyzers to finish.
     contributorCount.await();
-    if (inputErrors.size() > 0) {
-      throw new Exception("Errors in inputs", inputErrors.get(0));
+    if (errors.size() > 0) {
+      throw new Exception("Errors in inputs");
     }
     
     

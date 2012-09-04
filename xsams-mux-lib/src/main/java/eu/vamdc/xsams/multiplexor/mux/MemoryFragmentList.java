@@ -3,7 +3,7 @@
  * and open the template in the editor.
  */
 
-package eu.vamdc.xsams.mux;
+package eu.vamdc.xsams.multiplexor.mux;
 
 import java.util.ArrayList;
 

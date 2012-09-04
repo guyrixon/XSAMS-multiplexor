@@ -45,4 +45,4 @@
  * A FragmentQueue may be implemented to store the queued data in memory, or
  * in a file. The file implementation is cumbersome but allows a longer queue.
  */
-package eu.vamdc.xsams.mux;
+package eu.vamdc.xsams.multiplexor.mux;

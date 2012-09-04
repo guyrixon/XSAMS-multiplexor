@@ -55,7 +55,7 @@
             	<configuration>
                 <transformers>
                   <transformer implementation="org.apache.maven.plugins.shade.resource.ManifestResourceTransformer">
-                    <mainClass>eu.vamdc.xsams.mux.App</mainClass>
+                    <mainClass>eu.vamdc.xsams.multiplexor.cl.App</mainClass>
                 	</transformer>
               	</transformers>
             	</configuration>
