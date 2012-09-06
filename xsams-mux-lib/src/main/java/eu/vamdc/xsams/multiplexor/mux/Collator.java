@@ -1,9 +1,13 @@
 package eu.vamdc.xsams.multiplexor.mux;
 
+import java.io.File;
+import java.io.FileNotFoundException;
+import java.io.IOException;
 import java.io.OutputStream;
 import java.net.URL;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -19,12 +23,26 @@ import javax.xml.stream.events.Attribute;
 import javax.xml.stream.events.XMLEvent;
 
 /**
- * A collator for one set of XSAMS inputs, producing one XSAMS output.
+ * A collator for one set of XSAMS inputUrls, producing one XSAMS output.
  * Therefore, one "job" in the multiplexor system.
+ * <p>
+ * The job can be run synchronously, by calling {@link #collate}, which
+ * blocks until the collation finishes or fails. Failure is indicated by a
+ * thrown exception. If the failure was caused by errors in the inputUrls,
+ * those errors may be recovered by calling {@link #getErrors}.
+ * <p>
+ * The job may also be run asynchronously, in a thread, using the 
+ * Runnable interface. In this mode, any thread may poll the completion status
+ * by calling {@link #isFinished}. This method returns true if the collation
+ * has either completed or failed. To distinguish success from failure, the
+ * caller should call {@link #getErrors} which gives an empty list for 
+ * success and a populated list for failure. In the asynchronous mode, a
+ * failure in the collator itself, as distinct from an error in the inputUrls,
+ * would appear in the list returned by {@code getErrors}.
  * 
  * @author Guy Rixon
  */
-public class Collator {
+public class Collator implements Runnable {
   
   public static final String XSAMS_NS_URI = "http://vamdc.org/xml/xsams/0.3";
   
@@ -50,7 +68,9 @@ public class Collator {
   
   private Map<String,FragmentList> queues;
   
-  private Set<URL> inputs;
+  private Set<URL> inputUrls;
+  
+  private Set<File> inputFiles;
   
   private OutputStream output;
   
@@ -60,15 +80,46 @@ public class Collator {
   
   private AtomicBoolean finished;
   
+  private List<Analyzer> analyzers;
   
-  public Collator(Set<URL> u, OutputStream o) {
-    inputs = u;
-    output = o;
-    
-    int nContributors = u.size();
-    contributorCount = new CountDownLatch(nContributors);
+  
+  public Collator(OutputStream o, Set<File> files) throws IllegalArgumentException, FileNotFoundException, XMLStreamException {
+    this(files.size(), o);
+    inputFiles = files;
+    inputUrls  = new HashSet<URL>(0);
+    Integer i = 0;
+    for (File f : files) {
+      i++;
+      String suffix = "_" + i.toString();
+      analyzers.add(new Analyzer(f, queues, suffix, contributorCount, errors));
+    }
+  }
+  
+  public Collator(Set<URL> urls, OutputStream o) throws IllegalArgumentException, XMLStreamException, IOException {
+    this(urls.size(), o);
+    inputUrls  = urls;
+    inputFiles = new HashSet<File>(0);
+    Integer i = 0;
+    for (URL u : urls) {
+      i++;
+      String suffix = "_" + i.toString();
+      analyzers.add(new Analyzer(u, queues, suffix, contributorCount, errors));
+    }
+  }
+  
+  /**
+   * Constructs a Collator.
+   * 
+   * @param u The input URLs; may not be null.
+   * @param o The destination for the output XSAMS; may not be null.
+   * @throws IllegalArgumentException If either parameter is null.
+   */
+  public Collator(int nInputs, OutputStream o) throws IllegalArgumentException {
+    contributorCount = new CountDownLatch(nInputs);
     errors = new CopyOnWriteArrayList();
     finished = new AtomicBoolean(false);
+    
+    analyzers = new ArrayList<Analyzer>(nInputs);
     
     
     // Set up the queues for the XSAMS fragments.
@@ -89,6 +140,26 @@ public class Collator {
     queues.put("Method",                                 new MemoryFragmentList());
     queues.put("Function",                               new MemoryFragmentList());
     queues.put("Comments",                               new MemoryFragmentList());
+    
+    output = o;
+  }
+  
+  /**
+   * Reveals the set of input URLs for the XSAMS.
+   * 
+   * @return The set of URLs (never null, could be empty in exceptional cases).
+   */
+  public Set<URL> getInputUrls() {
+    return inputUrls;
+  }
+  
+  /**
+   * Reveals the set of input files for the XSAMS.
+   * 
+   * @return The set of URLs (never null, could be empty in exceptional cases).
+   */
+  public Set<File> getInputFiles() {
+    return inputFiles;
   }
   
   /**
@@ -104,6 +175,10 @@ public class Collator {
     return errors;
   }
   
+  public int getContributorCount() {
+    return (int) contributorCount.getCount();
+  }
+  
   public void run() {
     try {
       collate();
@@ -111,17 +186,16 @@ public class Collator {
     catch (Exception e) {
       errors.add(e);
     }
+    finally {
+      finished.set(true);
+    }
   }
   
   
   public void collate() throws XMLStreamException, Exception  {
     
-    // Parse the inputs in parallel.
-    Integer i = 0;
-    for (URL u : inputs) {
-      i++;
-      String suffix = "_" + i.toString();
-      Analyzer a = new Analyzer(u, queues, suffix, contributorCount, errors);
+    // Parse the inputUrls in parallel.
+    for (Analyzer a : analyzers) {
       new Thread(a).start();
     }
     
@@ -172,9 +246,13 @@ public class Collator {
     
     out.close();
     output.close();
+    
+    finished.set(true);
   }
   
   private void startDocument(XMLEventFactory factory, XMLEventWriter out) throws XMLStreamException {
+    assert factory != null;
+    assert out != null;
     out.setPrefix("xsi", XSI_NS_URI);
     List<Attribute> attributes = new ArrayList<Attribute>(1);
     attributes.add(factory.createAttribute(SCHEMALOCATION, XSAMS_NS_URI+" "+XSAMS_NS_URI));

@@ -5,6 +5,8 @@
 
 package eu.vamdc.xsams.multiplexor.mux;
 
+import java.io.File;
+import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.net.URL;
 import java.util.ArrayList;
@@ -15,8 +17,6 @@ import java.util.Map;
 import java.util.concurrent.CountDownLatch;
 import javax.xml.namespace.QName;
 import javax.xml.stream.XMLEventFactory;
-import javax.xml.stream.XMLEventReader;
-import javax.xml.stream.XMLInputFactory;
 import javax.xml.stream.XMLStreamException;
 import javax.xml.stream.events.Attribute;
 import javax.xml.stream.events.StartElement;
@@ -30,7 +30,9 @@ public class Analyzer implements Runnable {
   
   private Map<String,FragmentList> queues;
   
-  private URL source;
+  private URL remoteSource;
+  
+  private File localSource;
   
   private String suffix;
   
@@ -39,6 +41,8 @@ public class Analyzer implements Runnable {
   private List<Exception> errors;
   
   private XMLEventFactory  factory;
+  
+  private XsamsEventReader reader;
   
   
   private final static List<String> idAttributes = Arrays.asList(new String[] {
@@ -51,20 +55,36 @@ public class Analyzer implements Runnable {
     "StateRef", "UpperStateRef", "LowerStateRef", "SpeciesRef", "SourceRef"
   });
   
-  public Analyzer(URL u, Map<String,FragmentList> q, String s, CountDownLatch l, List<Exception> e) {
+  public Analyzer(URL u, Map<String,FragmentList> q, String s, CountDownLatch l, List<Exception> e) throws XMLStreamException, IOException {
+    remoteSource = u;
+    localSource  = null;
     queues = q;
-    source = u;
     latch  = l;
     errors = e;
     suffix = s;
     
     factory = XMLEventFactory.newFactory();
+    
+    reader = new XsamsEventReader(u);
+  }
+  
+  public Analyzer(File f, Map<String,FragmentList> q, String s, CountDownLatch l, List<Exception> e) throws FileNotFoundException, XMLStreamException {
+    remoteSource = null;
+    localSource  = f;
+    queues = q;
+    latch  = l;
+    errors = e;
+    suffix = s;
+    
+    factory = XMLEventFactory.newFactory();
+    
+    reader = new XsamsEventReader(f, true);
   }
 
   @Override
   public void run() {
     try {
-      parseUrl();
+      parseSource();
     }
     catch (Exception e) {
       errors.add(e);
@@ -74,31 +94,29 @@ public class Analyzer implements Runnable {
     }
   }
   
-  
   /**
-   * Parses the XSAMS document at the URL {@link #source} into {@link Fragment}
+   * Parses the XSAMS document in the given file {@link #source} into {@link Fragment}
    * objects. The fragments are written to the queues set at construction.
    * 
    * @throws XMLStreamException If the data at the source URL cannot be read as XML.
    * @throws IOException If the source URL cannot be read.
    */
-  private void parseUrl() throws XMLStreamException, IOException {
-    XMLEventReader in = XMLInputFactory.newFactory().createXMLEventReader(source.openStream());
+  private void parseSource() throws XMLStreamException, IOException {
     try {
-      parseDocument(in);
+      parseDocument();
     }
     finally {
-      in.close();
+      reader.close();
     }
   }
 
-  private void parseDocument(XMLEventReader in) throws XMLStreamException {
-    while (in.hasNext()) {
-      XMLEvent e = in.nextEvent();
+  private void parseDocument() throws XMLStreamException {
+    while (reader.hasNext()) {
+      XMLEvent e = reader.nextEvent();
       if (e.isStartElement()) {
         String tag = e.asStartElement().getName().getLocalPart();
         if (queues.containsKey(tag)) {
-           parseFragment(in, e.asStartElement(), tag);
+           parseFragment(e.asStartElement(), tag);
         }
       }
     }
@@ -116,13 +134,13 @@ public class Analyzer implements Runnable {
    * @param tag The local name of the element.
    * @throws XMLStreamException 
    */
-  private void parseFragment(XMLEventReader in, StartElement start, String tag) throws XMLStreamException {
+  private void parseFragment(StartElement start, String tag) throws XMLStreamException {
     FragmentList q = queues.get(tag);
     Fragment f = new Fragment();
     f.add(modifyStartElement(start));
     boolean elementClosed = false;
-    while (in.hasNext() && !elementClosed) {
-      XMLEvent e = in.nextEvent();
+    while (reader.hasNext() && !elementClosed) {
+      XMLEvent e = reader.nextEvent();
       if (e.isStartElement()) {
         f.add(modifyStartElement(e.asStartElement()));
       }

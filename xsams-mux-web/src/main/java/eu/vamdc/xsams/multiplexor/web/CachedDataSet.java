@@ -1,11 +1,12 @@
 package eu.vamdc.xsams.multiplexor.web;
 
+import eu.vamdc.xsams.multiplexor.mux.Collator;
 import java.io.File;
+import java.io.IOException;
 import java.net.URL;
 import java.util.Date;
+import java.util.HashSet;
 import java.util.Set;
-import java.util.concurrent.Future;
-import java.util.concurrent.atomic.AtomicLong;
 
 /**
  *
@@ -16,12 +17,7 @@ public class CachedDataSet {
   /**
    * The file to which the merged XSAMS is written.
    */
-  private final File cacheFile;
-  
-  /**
-   * The sources of the XSAMS to be merged.
-   */
-  private final Set<URL> originalUrls;
+  private final File outputFile;
   
   /**
    * The timestamp of the cache entry. Used when purging the cache.
@@ -29,44 +25,32 @@ public class CachedDataSet {
   private final Date entryTime;
   
   /**
-   * A connection to the thread doing the work.
+   * The object doing the work. This object will be running in its own
+   * thread. Status of the job can be got from the object itself.
    */
-  private final Future<Object> future;
+  private final Collator collator;
   
-  /**
-   * A progress counter. The value will be shown to the user when the
-   * results are not ready. The counter works in units of XML events, so
-   * the absolute value is not very interesting; increases in the counter show
-   * that parsing is still in progress.
-   */
-  private AtomicLong progress;
   
-  public CachedDataSet(Set<URL> u, File f, Future<Object> v, AtomicLong p) {
-    this(u, f, v, p, new Date());
+  public CachedDataSet(File out, Collator c) throws IOException {
+    this(c, out, new Date());
   }
   
-  public CachedDataSet(File f) {
-    this(null, f, null, new AtomicLong(), new Date());
-  }
-  
-  protected CachedDataSet(Set<URL> u, File file, Future<Object> f, AtomicLong p, Date d) {
-    cacheFile    = file;
-    originalUrls = u;
-    future       = f;
-    entryTime    = d;
-    progress     = p;
-  }
-  
-  public AtomicLong getByteCounter() {
-    return progress;
+  protected CachedDataSet(Collator c, File out, Date d) throws IOException {
+    collator    = c;
+    entryTime   = d;
+    outputFile  = out;
   }
   
   public File getCacheFile() {
-    return cacheFile;
+    return outputFile;
   }
   
   public Set<URL> getOriginalUrls() {
-    return originalUrls;
+    return collator.getInputUrls();
+  }
+  
+  public Collator getCollator() {
+    return collator;
   }
   
   public Date getEntryTime() {
@@ -74,31 +58,15 @@ public class CachedDataSet {
   }
   
   public boolean isReady() throws DownloadException {
-    if (future == null) {
-      return true;
-    }
-    else {
-      if (future.isDone()) {
-        try {
-          future.get();
-        }
-        catch (Exception e) {
-          throw new DownloadException("Download failed", e.getCause());
-        }
-        return true;
-      }
-      else {
-        return false;
-      }
-    }
+    return collator.isFinished();
   }
   
   public void delete() {
-    if (future != null) {
-      future.cancel(true);
+    if (outputFile != null) {
+      outputFile.delete();
     }
-    if (cacheFile != null) {
-      cacheFile.delete();
+    for (File f : collator.getInputFiles()) {
+      f.delete();
     }
   }
   

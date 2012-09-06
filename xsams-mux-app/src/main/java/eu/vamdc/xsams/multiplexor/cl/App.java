@@ -20,6 +20,7 @@ public class App {
     }
     catch (Exception e) {
       System.err.println(e);
+      e.printStackTrace(System.err);
       System.exit(1);
     }
     
@@ -29,8 +30,10 @@ public class App {
     }
     catch (Exception e1) {
       System.err.println(e1);
+      e1.printStackTrace(System.err);
       for (Exception e2: c.getErrors()) {
         System.err.println(e2);
+        e2.printStackTrace(System.err);
         System.exit(1);
       }
     }
