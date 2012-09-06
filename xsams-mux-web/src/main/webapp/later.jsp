@@ -7,8 +7,8 @@
     <title>Download in progress</title>
   </head>
   <body>
-    <h1>Download in progress</h1>
-    <p>The data are being downloaded and parsed. Reload this page to see the results (reloading
+    <h1>Transfer in progress</h1>
+    <p>The data are being transfered and parsed. Reload this page to see the results (reloading
        is done automatically in most browsers).</p>
     <p>Inputs still being parsed: <%=request.getAttribute("eu.vamdc.xsams.multiplexor.contributors")%></p>
   </body>

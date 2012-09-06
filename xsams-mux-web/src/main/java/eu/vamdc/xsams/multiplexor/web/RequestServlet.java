@@ -3,12 +3,19 @@ package eu.vamdc.xsams.multiplexor.web;
 import eu.vamdc.xsams.multiplexor.mux.Collator;
 import java.io.File;
 import java.io.FileOutputStream;
+import java.io.IOException;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Set;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
+import org.apache.commons.fileupload.FileItem;
+import org.apache.commons.fileupload.FileUploadException;
+import org.apache.commons.fileupload.disk.DiskFileItem;
+import org.apache.commons.fileupload.disk.DiskFileItemFactory;
+import org.apache.commons.fileupload.servlet.ServletFileUpload;
 
 /**
  *
@@ -25,14 +32,62 @@ public class RequestServlet extends ErrorReportingServlet {
 
   @Override
   public void post(HttpServletRequest request, HttpServletResponse response) throws Exception {
+    if ("application/x-www-form-urlencoded".equals(request.getContentType())) {
+      LOG.debug("Handling application/x-www-form-urlencoded");
+      String key = processUrls(request);
+      redirect(request, key, response);
+      LOG.info("New job " + key + " committed.");
+    }
+    else {
+      LOG.debug("Handling multipart");
+      String key = processUploadedFiles(request);
+      redirect(request, key, response);
+      LOG.info("New job " + key + " committed.");
+    }
+  }
+  
+  private String processUrls(HttpServletRequest request) throws Exception {
     Set<URL> urls = getUrls(request);
     File out = File.createTempFile("xsams-mux-", ".xsams.xml");
     Collator collator = new Collator(urls, new FileOutputStream(out));
     CachedDataSet data = new CachedDataSet(out, collator);
     String key = cache.put(data);
     new Thread(collator).start();
-    redirect(request, key, response);
-    LOG.info("New job " + key + " committed.");
+    return key;
+  }
+  
+  private String processUploadedFiles(HttpServletRequest request) 
+      throws FileUploadException, IOException, RequestException {
+    try {
+      Set<File> files = new HashSet<File>();
+      
+      // Create a factory for disk-based file items
+      DiskFileItemFactory factory = new DiskFileItemFactory();
+      factory.setSizeThreshold(0); // Send all files to disc.
+
+      // Create a new file upload handler
+      ServletFileUpload upload = new ServletFileUpload(factory);
+
+      // Parse the request
+      List<FileItem> items = upload.parseRequest(request);
+      for (FileItem i : items) {
+        if (!i.isFormField()) {
+          DiskFileItem d = (DiskFileItem) i;
+          files.add(d.getStoreLocation());
+        }
+      }
+      
+      // Form and submit the multiplexing job.
+      File out = File.createTempFile("xsams-mux-", ".xsams.xml");
+      Collator collator = new Collator(new FileOutputStream(out), files);
+      CachedDataSet data = new CachedDataSet(out, collator);
+      String key = cache.put(data);
+      new Thread(collator).start();
+      return key;
+    }
+    catch (Exception e) {
+      throw new RequestException(e);
+    }
   }
   
   /**
@@ -123,5 +178,7 @@ public class RequestServlet extends ErrorReportingServlet {
     }
     return urls;
   }
+
+  
   
 }
