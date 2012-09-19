@@ -23,8 +23,13 @@ import javax.xml.stream.events.Attribute;
 import javax.xml.stream.events.XMLEvent;
 
 /**
- * A collator for one set of XSAMS inputUrls, producing one XSAMS output.
+ * A collator for one set of XSAMS inputs, producing one XSAMS output.
  * Therefore, one "job" in the multiplexor system.
+ * <p>
+ * Inputs may be presented as URLs, as File objects or as a mix of both. Inputs
+ * given as File objects are treated as temporary files and deleted after they
+ * are read. To use a file and keep it after the merging, offer it as a URL
+ * in the file scheme.
  * <p>
  * The job can be run synchronously, by calling {@link #collate}, which
  * blocks until the collation finishes or fails. Failure is indicated by a
@@ -83,7 +88,34 @@ public class Collator implements Runnable {
   private List<Analyzer> analyzers;
   
   
-  public Collator(OutputStream o, Set<File> files) throws IllegalArgumentException, FileNotFoundException, XMLStreamException {
+  /**
+   * Constructs a Collator for any mix of input files and URLs.
+   * @param files The input files (empty set if no file; must not be null).
+   * @param urls The input URLs (empty set if no URLs; must not be null).
+   * @param o The output stream.
+   * @throws FileNotFoundException If any input file is missing.
+   * @throws XMLStreamException If the parsing of the inputs fails.
+   * @throws IOException  If the output cannot be written.
+   */
+  public Collator(Set<File> files, Set<URL> urls, OutputStream o) 
+      throws FileNotFoundException, XMLStreamException, IOException {
+    this(files.size() + urls.size(), o);
+    inputFiles = files;
+    inputUrls  = urls;
+    Integer i = 0;
+    for (File f : files) {
+      i++;
+      String suffix = "_" + i.toString();
+      analyzers.add(new Analyzer(f, queues, suffix, contributorCount, errors));
+    }
+    for (URL u : urls) {
+      i++;
+      String suffix = "_" + i.toString();
+      analyzers.add(new Analyzer(u, queues, suffix, contributorCount, errors));
+    }
+  }
+  
+  public Collator(OutputStream o, Set<File> files) throws FileNotFoundException, XMLStreamException {
     this(files.size(), o);
     inputFiles = files;
     inputUrls  = new HashSet<URL>(0);
@@ -95,7 +127,7 @@ public class Collator implements Runnable {
     }
   }
   
-  public Collator(Set<URL> urls, OutputStream o) throws IllegalArgumentException, XMLStreamException, IOException {
+  public Collator(Set<URL> urls, OutputStream o) throws XMLStreamException, IOException {
     this(urls.size(), o);
     inputUrls  = urls;
     inputFiles = new HashSet<File>(0);
@@ -112,9 +144,8 @@ public class Collator implements Runnable {
    * 
    * @param u The input URLs; may not be null.
    * @param o The destination for the output XSAMS; may not be null.
-   * @throws IllegalArgumentException If either parameter is null.
    */
-  public Collator(int nInputs, OutputStream o) throws IllegalArgumentException {
+  public Collator(int nInputs, OutputStream o) {
     contributorCount = new CountDownLatch(nInputs);
     errors = new CopyOnWriteArrayList();
     finished = new AtomicBoolean(false);
