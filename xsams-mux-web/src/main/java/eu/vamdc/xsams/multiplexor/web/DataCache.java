@@ -83,7 +83,7 @@ public class DataCache {
   public synchronized String put(Set<URL> urls, Set<File> files) 
       throws IOException, IllegalArgumentException, XMLStreamException {
     File out = File.createTempFile("xsams-mux-", ".xsams.xml");
-    Collator c = new Collator(urls, new FileOutputStream(out));
+    Collator c = new Collator(files, urls, new FileOutputStream(out));
     return put(new CachedDataSet(out, c));
   }
   
