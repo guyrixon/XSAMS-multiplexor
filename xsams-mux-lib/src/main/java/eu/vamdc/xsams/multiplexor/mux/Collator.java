@@ -49,7 +49,7 @@ import javax.xml.stream.events.XMLEvent;
  */
 public class Collator implements Runnable {
   
-  public static final String XSAMS_NS_URI = "http://vamdc.org/xml/xsams/0.3";
+  public static final String XSAMS_NS_URI = "http://vamdc.org/xml/xsams/1.0";
   
   public static final QName XSAMSDATA    = new QName(XSAMS_NS_URI, "XSAMSData");
   public static final QName SPECIES      = new QName(XSAMS_NS_URI, "Species");
