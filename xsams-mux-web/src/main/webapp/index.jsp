@@ -5,14 +5,13 @@
 <html>
     <head>
         <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
-        <title>Views of XSAMS</title>
+        <title>XSAMS merger</title>
         <link rel="stylesheet" href="xsams-views.css" type="text/css"/>
     </head>
     <body>
-        <h1>Views of an XSAMS document</h1>
-        This application tabulates the states and transitions in an XSAMS documents.
-        It can read data from a URL (e.g. direct from a VAMDC database-service)
-        or from a file uploaded from your desktop.
+        <h1>XSAMS merger</h1>
+        This application merges two (or more) XSAMS documents into one.
+        <!--
         <form  action="service" method="post" enctype="application/x-www-form-urlencoded">
           <p>
             Read from this URL: 
@@ -21,10 +20,17 @@
           </p>
         </form>
         <p><strong>or</strong></p>
+        -->
         <form  action="service" method="post" enctype="multipart/form-data">
           <p>
-            Read this file: 
+            Merge this file:
             <input type="file" name="upload" size="128">
+          </p>
+          <p>
+            ...with this file:
+            <input type="file" name="upload" size="128">
+          </p>
+          <p>
             <input type="submit"/>
           </p>
         </form>
