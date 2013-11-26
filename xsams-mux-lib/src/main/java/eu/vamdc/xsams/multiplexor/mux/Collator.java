@@ -49,7 +49,16 @@ import javax.xml.stream.events.XMLEvent;
  */
 public class Collator implements Runnable {
   
+  /**
+   * Namespace URI for XSAMS-1.0.
+   */
   public static final String XSAMS_NS_URI = "http://vamdc.org/xml/xsams/1.0";
+  
+  /**
+   * Location of schema document for XSAMS-1.0. Note that this is not quite
+   * identical to the namespace URI: it adds a trailing slash.
+   */
+  public static final String XSAMS_SCHEMA_URI = "http://vamdc.org/xml/xsams/1.0/";
   
   public static final QName XSAMSDATA    = new QName(XSAMS_NS_URI, "XSAMSData");
   public static final QName SPECIES      = new QName(XSAMS_NS_URI, "Species");
@@ -286,7 +295,7 @@ public class Collator implements Runnable {
     assert out != null;
     out.setPrefix("xsi", XSI_NS_URI);
     List<Attribute> attributes = new ArrayList<Attribute>(1);
-    attributes.add(factory.createAttribute(SCHEMALOCATION, XSAMS_NS_URI+" "+XSAMS_NS_URI));
+    attributes.add(factory.createAttribute(SCHEMALOCATION, XSAMS_NS_URI+" "+XSAMS_SCHEMA_URI));
     out.add(factory.createStartElement(XSAMSDATA, attributes.iterator(), null));
     out.add(factory.createCharacters("\n"));
   }
