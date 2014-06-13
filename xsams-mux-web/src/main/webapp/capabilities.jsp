@@ -26,7 +26,7 @@
     </interface>
     <versionOfStandards>12.07</versionOfStandards>
     <versionOfSoftware>1.0-SNAPSHOT</versionOfSoftware>
-    <numberOfInputs>1</numberOfInputs>
+    <numberOfInputs>2-5</numberOfInputs>
   </capability>
    
   <capability standardID="ivo://ivoa.net/std/VOSI#capabilities">
